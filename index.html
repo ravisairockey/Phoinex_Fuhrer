@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phoenix Führer — PC Diagnostics Command Center</title>
+<style>
+:root{
+  --bg:#0a0a0f;
+  --bg2:#111119;
+  --panel:#15151f;
+  --panel2:#1b1b28;
+  --border:#2a2a3a;
+  --text:#e8e8f0;
+  --text-dim:#9494ab;
+  --ember1:#ff5e3a;
+  --ember2:#ff2d55;
+  --ember3:#ffb347;
+  --accent:#ff6b35;
+  --safe:#37d67a;
+  --caution:#ffb443;
+  --risky:#ff3860;
+  --radius:14px;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,Arial,sans-serif;
+  background:
+    radial-gradient(circle at 20% -10%, rgba(255,94,58,0.12), transparent 40%),
+    radial-gradient(circle at 90% 10%, rgba(138,43,226,0.10), transparent 45%),
+    var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+::selection{background:var(--ember2);color:#fff;}
+code, .mono{font-family:'Cascadia Code','Consolas','SFMono-Regular',Menlo,monospace;}
+
+/* ---------- Ember particles ---------- */
+#embers{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.ember{
+  position:absolute;bottom:-10px;border-radius:50%;
+  background:radial-gradient(circle,var(--ember3),var(--ember1) 60%,transparent 70%);
+  opacity:.55;filter:blur(0.3px);
+  animation:rise linear infinite;
+}
+@keyframes rise{
+  0%{transform:translateY(0) translateX(0) scale(1);opacity:0;}
+  10%{opacity:.6;}
+  100%{transform:translateY(-110vh) translateX(var(--drift,20px)) scale(0.3);opacity:0;}
+}
+@media (prefers-reduced-motion: reduce){
+  .ember{animation:none;display:none;}
+  *{scroll-behavior:auto !important;}
+}
+
+/* ---------- Layout ---------- */
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+
+header.hero{
+  text-align:center;padding:38px 20px 26px;position:relative;
+}
+.logo-mark{
+  font-size:52px;line-height:1;
+  filter:drop-shadow(0 0 18px rgba(255,94,58,.55));
+  display:inline-block;animation:flicker 3.2s ease-in-out infinite;
+}
+@keyframes flicker{
+  0%,100%{transform:scale(1) rotate(0deg);}
+  50%{transform:scale(1.06) rotate(-2deg);}
+}
+h1.title{
+  font-size:clamp(28px,5vw,48px);
+  margin:10px 0 4px;
+  letter-spacing:1px;
+  background:linear-gradient(90deg,var(--ember3),var(--ember2) 45%,var(--accent) 80%,#8a2be2);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  font-weight:800;
+}
+.subtitle{color:var(--text-dim);font-size:15px;max-width:680px;margin:0 auto;}
+
+/* ---------- Controls Bar ---------- */
+.controls{
+  display:flex;flex-wrap:wrap;gap:14px;justify-content:center;align-items:center;
+  margin:26px auto 8px;
+}
+.os-toggle, .util-btns{display:flex;gap:8px;background:var(--panel);border:1px solid var(--border);
+  padding:6px;border-radius:999px;}
+.os-btn, .util-btn{
+  border:none;background:transparent;color:var(--text-dim);padding:8px 16px;border-radius:999px;
+  cursor:pointer;font-size:13px;font-weight:600;transition:.2s all;white-space:nowrap;
+}
+.os-btn.active{background:linear-gradient(135deg,var(--ember1),var(--ember2));color:#fff;box-shadow:0 4px 14px rgba(255,45,85,.35);}
+.os-btn:hover:not(.active){color:var(--text);background:var(--panel2);}
+.util-btn:hover{color:var(--text);background:var(--panel2);}
+
+/* ---------- Dashboard ---------- */
+.dashboard{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;
+  margin:26px 0 10px;
+}
+.stat-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;position:relative;overflow:hidden;
+}
+.stat-card .num{font-size:26px;font-weight:800;}
+.stat-card .lbl{color:var(--text-dim);font-size:12.5px;margin-top:2px;}
+.ring-wrap{display:flex;align-items:center;gap:12px;}
+.ring{width:56px;height:56px;flex-shrink:0;}
+.ring circle{fill:none;stroke-width:6;}
+.ring .bg{stroke:var(--border);}
+.ring .fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .6s ease;}
+
+/* ---------- Tier Tabs ---------- */
+.tier-tabs{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:34px 0 6px;}
+.tier-tab{
+  border:1px solid var(--border);background:var(--panel);color:var(--text-dim);
+  padding:12px 20px;border-radius:12px;cursor:pointer;font-weight:700;font-size:14px;
+  transition:.25s all;position:relative;
+}
+.tier-tab .tt-badge{display:block;font-size:11px;font-weight:500;opacity:.75;margin-top:2px;}
+.tier-tab.active{color:#fff;transform:translateY(-2px);}
+.tier-tab:hover{transform:translateY(-2px);}
+.tier-tab .tt-progress{
+  position:absolute;bottom:0;left:0;height:3px;border-radius:0 0 12px 12px;background:#fff;opacity:.85;
+}
+
+.tier-tagline{
+  text-align:center;color:var(--text-dim);font-size:14px;margin:14px 0 24px;
+  padding:10px 16px;background:var(--panel);display:inline-block;border-radius:999px;border:1px solid var(--border);
+}
+.tier-tagline-wrap{text-align:center;}
+
+/* ---------- Categories ---------- */
+.category{
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  margin-bottom:16px;overflow:hidden;
+}
+.cat-header{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:16px 20px;cursor:pointer;user-select:none;
+}
+.cat-header:hover{background:var(--panel2);}
+.cat-title{display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;}
+.cat-icon{font-size:20px;}
+.cat-meta{display:flex;align-items:center;gap:14px;}
+.cat-count{font-size:12.5px;color:var(--text-dim);}
+.chevron{transition:transform .25s ease;color:var(--text-dim);}
+.category.open .chevron{transform:rotate(180deg);}
+.cat-progress-bar{width:90px;height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.cat-progress-fill{height:100%;background:var(--accent);border-radius:4px;transition:width .4s ease;}
+
+.cat-body{max-height:0;overflow:hidden;transition:max-height .35s ease;}
+.category.open .cat-body{max-height:6000px;}
+.cat-body-inner{padding:6px 18px 18px;display:flex;flex-direction:column;gap:14px;}
+
+/* ---------- Step Card ---------- */
+.step{
+  background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;
+  transition:.2s border-color;
+}
+.step.done{border-color:var(--safe);background:linear-gradient(180deg,rgba(55,214,122,.06),rgba(55,214,122,.02));}
+.step-top{display:flex;gap:12px;align-items:flex-start;}
+.step-check{
+  width:22px;height:22px;flex-shrink:0;border-radius:6px;border:2px solid var(--border);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:2px;
+  transition:.2s all;background:var(--panel);
+}
+.step-check.checked{background:var(--safe);border-color:var(--safe);}
+.step-check svg{width:14px;height:14px;opacity:0;transition:.15s opacity;}
+.step-check.checked svg{opacity:1;}
+.step-title-row{flex:1;}
+.step-title{font-size:15px;font-weight:700;margin:0 0 4px;}
+.step.done .step-title{color:var(--safe);}
+.step-desc{color:var(--text-dim);font-size:13.5px;line-height:1.5;margin:0;}
+.badges{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+.badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.4px;}
+.badge.safe{background:rgba(55,214,122,.15);color:var(--safe);}
+.badge.caution{background:rgba(255,180,67,.15);color:var(--caution);}
+.badge.risky{background:rgba(255,56,96,.15);color:var(--risky);}
+.badge.time{background:rgba(255,255,255,.08);color:var(--text-dim);}
+
+.code-block{
+  margin-top:12px;background:#0c0c14;border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;position:relative;
+}
+.code-block pre{margin:0;white-space:pre-wrap;word-break:break-word;font-size:12.8px;color:#c9f2c9;line-height:1.55;padding-right:70px;}
+.copy-btn{
+  position:absolute;top:10px;right:10px;background:var(--panel);border:1px solid var(--border);
+  color:var(--text-dim);font-size:11.5px;padding:6px 10px;border-radius:8px;cursor:pointer;font-weight:600;
+}
+.copy-btn:hover{color:#fff;border-color:var(--accent);}
+.copy-btn.copied{background:var(--safe);color:#04270f;border-color:var(--safe);}
+
+.tip{
+  margin-top:10px;font-size:12.8px;color:var(--ember3);background:rgba(255,179,71,.08);
+  border-left:3px solid var(--ember3);padding:8px 12px;border-radius:6px;
+}
+.compare-link{
+  display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:12.8px;font-weight:700;
+  color:#fff;background:linear-gradient(135deg,var(--accent),#8a2be2);
+  padding:8px 14px;border-radius:999px;text-decoration:none;transition:.2s transform;
+}
+.compare-link:hover{transform:translateY(-1px);}
+
+/* Risky confirm overlay */
+.risky-lock{
+  margin-top:12px;padding:12px 14px;border:1px dashed var(--risky);border-radius:10px;
+  background:rgba(255,56,96,.06);font-size:13px;color:var(--risky);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.risky-lock button{
+  background:var(--risky);color:#fff;border:none;padding:7px 14px;border-radius:8px;font-weight:700;cursor:pointer;font-size:12.5px;
+}
+
+footer{
+  margin-top:60px;text-align:center;color:var(--text-dim);font-size:12.5px;
+  border-top:1px solid var(--border);padding-top:24px;
+}
+.legend{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-bottom:14px;font-size:12px;}
+.legend span{display:inline-flex;align-items:center;gap:6px;}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--panel2);border:1px solid var(--safe);color:var(--safe);padding:12px 20px;border-radius:10px;
+  font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:.3s all;z-index:50;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media(max-width:600px){
+  .cat-header{padding:14px;}
+  .step{padding:14px;}
+  .code-block pre{font-size:11.5px;padding-right:0;}
+  .copy-btn{position:static;margin-top:8px;display:inline-block;}
+}
+</style>
+</head>
+<body>
+<div id="embers"></div>
+<div class="wrap">
+
+  <header class="hero">
+    <span class="logo-mark">🔥</span>
+    <h1 class="title">PHOENIX FÜHRER</h1>
+    <p class="subtitle">Your guided, copy-paste, one-step-at-a-time PC diagnostics command center. Pick a difficulty. Pick your OS. Compare against the world. Rise from mediocre benchmarks.</p>
+  </header>
+
+  <div class="controls">
+    <div class="os-toggle" id="osToggle">
+      <button class="os-btn" data-os="win">🪟 Windows</button>
+      <button class="os-btn" data-os="mac">🍎 macOS</button>
+      <button class="os-btn" data-os="linux">🐧 Linux</button>
+    </div>
+    <div class="util-btns">
+      <button class="util-btn" id="exportBtn">⬇ Export Progress</button>
+      <button class="util-btn" id="importBtn">⬆ Import</button>
+      <button class="util-btn" id="resetBtn">↺ Reset All</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
+  </div>
+
+  <div class="dashboard" id="dashboard"></div>
+
+  <div class="tier-tabs" id="tierTabs"></div>
+  <div class="tier-tagline-wrap"><div class="tier-tagline" id="tierTagline"></div></div>
+
+  <div id="categories"></div>
+
+  <footer>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--safe)"></span>Safe</span>
+      <span><span class="dot" style="background:var(--caution)"></span>Caution</span>
+      <span><span class="dot" style="background:var(--risky)"></span>Risky / Confirm required</span>
+    </div>
+    Phoenix Führer — built as a guided aggregator on top of established, free tools & public benchmark databases (PassMark, Geekbench, TechPowerUp, HWBOT, Speedtest, PCPartPicker, AIDA64). No telemetry. No installs required to use this guide. Progress saved locally in your browser only.
+  </footer>
+</div>
+
+<div class="toast" id="toast">Copied to clipboard!</div>
+
+<script>
+const DATA = {"easy": {"label": "Easy", "tagline": "Zero installs. Pure copy-paste. Know your specs in 10 minutes.", "color": "#37d67a", "categories": {"cpu": [{"title": "Identify your CPU model", "desc": "Get the exact processor name/model so you can look up its rated benchmark score.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "systeminfo | findstr /C:\"Processor\"", "mac": "sysctl -n machdep.cpu.brand_string", "linux": "lscpu | grep 'Model name'"}, "compare": {"label": "PassMark CPU Benchmarks chart", "url": "https://www.cpubenchmark.net/"}}, {"title": "Check core/thread count & clock speed", "desc": "Cores, threads and base/boost clock define raw multitasking headroom.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "Get-CimInstance Win32_Processor | Select-Object Name,NumberOfCores,NumberOfLogicalProcessors,MaxClockSpeed", "mac": "sysctl -n hw.physicalcpu hw.logicalcpu hw.cpufrequency_max 2>/dev/null; system_profiler SPHardwareDataType | grep -i chip", "linux": "lscpu | egrep 'CPU\\(s\\)|MHz|Thread|Core'"}}], "gpu": [{"title": "Identify GPU model & driver version", "desc": "Get exact GPU name and driver version to compare against the PassMark/TechPowerUp database.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion,AdapterRAM", "mac": "system_profiler SPDisplaysDataType", "linux": "lspci -k | grep -EA3 'VGA|3D'"}, "compare": {"label": "TechPowerUp GPU database", "url": "https://www.techpowerup.com/gpu-specs/"}}], "ram": [{"title": "Check installed RAM amount, speed & channel mode", "desc": "Total capacity, speed (MHz) and single vs dual-channel dramatically affect performance.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "Get-CimInstance Win32_PhysicalMemory | Select-Object Manufacturer,Capacity,Speed,DeviceLocator", "mac": "system_profiler SPMemoryDataType", "linux": "sudo dmidecode -t memory | egrep 'Size|Speed|Locator'"}}], "storage": [{"title": "Check drive type (SSD/NVMe/HDD) & free space", "desc": "Storage type is the single biggest factor in system 'snappiness'.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "Get-PhysicalDisk | Select-Object FriendlyName,MediaType,Size,HealthStatus", "mac": "diskutil list; system_profiler SPNVMeDataType SPSerialATADataType", "linux": "lsblk -d -o NAME,ROTA,SIZE,MODEL  # ROTA=0 means SSD/NVMe"}}], "network": [{"title": "Run a quick internet speed test", "desc": "Baseline download/upload/ping using each OS's fastest built-in or official method.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "Start-Process https://fast.com", "mac": "networkQuality -v   # macOS 12+ built-in", "linux": "curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python3 -"}, "compare": {"label": "Speedtest global/ISP index", "url": "https://www.speedtest.net/global-index"}}], "os": [{"title": "Get overall OS build & health snapshot", "desc": "One command to see OS version, uptime and last boot \u2014 useful before/after tuning.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "Get-ComputerInfo | Select-Object WindowsProductName,OsVersion,OsHardwareAbstractionLayer,CsProcessors", "mac": "system_profiler SPSoftwareDataType", "linux": "hostnamectl && uptime"}}]}}, "medium": {"label": "Medium", "tagline": "Install one lightweight tool per category and get real numeric scores.", "color": "#3aa0ff", "categories": {"cpu": [{"title": "Install & run Geekbench 6 CLI (cross-platform)", "desc": "Industry-standard single/multi-core score you can upload and compare instantly.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "5 min", "cmd": {"win": "winget install --id Primate.Geekbench.6 -e ; geekbench6 --sysinfo", "mac": "brew install --cask geekbench6 && geekbench6", "linux": "wget -q https://cdn.geekbench.com/Geekbench-6.3.0-Linux.tar.gz && tar xf Geekbench-6.3.0-Linux.tar.gz && cd Geekbench-6.3.0-Linux && ./geekbench6"}, "compare": {"label": "Geekbench Browser (public scores)", "url": "https://browser.geekbench.com/"}}, {"title": "Run Windows built-in WinSAT formal assessment", "desc": "Legacy but free official Microsoft subsystem score (CPU/RAM/Disk/Graphics).", "os": ["win"], "risk": "safe", "time": "1 min", "cmd": {"win": "winsat formal"}}], "gpu": [{"title": "Install & run Cinebench 2024 (CPU+GPU render test)", "desc": "Maxon's render benchmark gives a repeatable score comparable worldwide.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "8 min", "cmd": {"win": "winget install --id Maxon.Cinebench -e", "mac": "brew install --cask cinebench", "linux": "echo 'Cinebench: download tarball from maxon.net, extract, run ./Cinebench'"}, "compare": {"label": "Cinebench R23/2024 score charts", "url": "https://www.maxon.net/en/cinebench"}}, {"title": "Run a browser GPU stress test (no install)", "desc": "Quick WebGL-based load test to sanity-check the GPU is actually engaging.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "Start-Process https://webglsamples.org/aquarium/aquarium.html", "mac": "open https://webglsamples.org/aquarium/aquarium.html", "linux": "xdg-open https://webglsamples.org/aquarium/aquarium.html"}}], "ram": [{"title": "Run a memory bandwidth/latency micro-benchmark", "desc": "Measures real read/write/copy throughput and latency, not just rated speed.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "3 min", "cmd": {"win": "winget install --id=alexrp.sysbench -e 2>$null; sysbench memory --memory-block-size=1K --memory-total-size=10G run", "mac": "brew install sysbench && sysbench memory --memory-block-size=1K --memory-total-size=10G run", "linux": "sudo apt install -y sysbench && sysbench memory --memory-block-size=1K --memory-total-size=10G run"}}], "storage": [{"title": "Benchmark SSD/HDD sequential & random speeds", "desc": "CrystalDiskMark (Win) or fio (Mac/Linux) gives read/write MB/s + IOPS to compare vs rated spec.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "5 min", "cmd": {"win": "winget install --id CrystalDewWorld.CrystalDiskMark -e", "mac": "brew install fio && fio --name=seqread --rw=read --bs=1M --size=1G --numjobs=1 --runtime=30 --group_reporting", "linux": "sudo apt install -y fio && fio --name=seqread --rw=read --bs=1M --size=1G --numjobs=1 --runtime=30 --group_reporting"}, "compare": {"label": "SSD/HDD benchmark database", "url": "https://ssd.userbenchmark.com/"}}, {"title": "Check drive health (SMART attributes)", "desc": "Catch early failure signs (reallocated sectors, wear level) before they cause slowdowns.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "winget install --id=CrystalDewWorld.CrystalDiskInfo -e", "mac": "brew install smartmontools && sudo smartctl -a /dev/disk0", "linux": "sudo apt install -y smartmontools && sudo smartctl -a /dev/sda"}}], "network": [{"title": "Run CLI Speedtest with jitter/packet loss", "desc": "Ookla's official CLI gives repeatable, scriptable results (better than browser tests).", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "winget install Ookla.Speedtest.CLI -e ; speedtest", "mac": "brew install speedtest-cli && speedtest", "linux": "curl -s https://install.speedtest.net/app/cli/install.deb.sh | sudo bash && sudo apt-get install -y speedtest && speedtest"}, "compare": {"label": "Speedtest global/ISP index", "url": "https://www.speedtest.net/global-index"}}], "os": [{"title": "Generate a full driver & startup app audit", "desc": "Identify outdated drivers and startup bloat silently eating boot time/RAM.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "Get-CimInstance Win32_PnPSignedDriver | Select-Object DeviceName,DriverVersion,DriverDate | Sort DriverDate", "mac": "system_profiler SPApplicationsDataType | grep -B3 'Location: /Library/StartupItems'", "linux": "systemd-analyze blame | head -20"}}]}}, "hard": {"label": "Hard", "tagline": "Stress-test under load while monitoring temps \u2014 find real-world stability limits.", "color": "#ff9f1c", "categories": {"cpu": [{"title": "Run a 10-minute all-core stress test while logging temps", "desc": "Pushes every core to 100% to reveal thermal throttling or instability that idle tests miss.", "os": ["win", "mac", "linux"], "risk": "caution", "time": "10 min", "cmd": {"win": "winget install --id=ColinIanKing.stress-ng -e 2>$null; stress-ng --cpu 0 --timeout 600s --metrics-brief", "mac": "brew install stress-ng && stress-ng --cpu 0 --timeout 600s --metrics-brief", "linux": "sudo apt install -y stress-ng && stress-ng --cpu 0 --timeout 600s --metrics-brief"}, "tip": "Simultaneously open HWiNFO64 (Win), iStat Menus/`sudo powermetrics` (Mac), or `sensors` (Linux) to watch \u00b0C live."}, {"title": "Live sensor/temperature monitor", "desc": "Watch package temp, clocks and power draw in real time during the stress test above.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "winget install REALiX.HWiNFO -e", "mac": "sudo powermetrics --samplers smc -i1000 -n5", "linux": "sudo apt install -y lm-sensors && sudo sensors-detect --auto && watch -n1 sensors"}}], "gpu": [{"title": "Run a 15-min GPU stability/artifact test", "desc": "FurMark-style load reveals coil whine, artifacting, throttling, or crashes under sustained 3D load.", "os": ["win", "mac", "linux"], "risk": "caution", "time": "15 min", "cmd": {"win": "winget install Geeks3D.FurMark -e", "mac": "echo 'macOS: use Geekbench 6 GPU Compute stress loop, or Unigine Heaven trial'", "linux": "sudo apt install -y glmark2 && glmark2 --run-forever"}, "tip": "Keep GPU temp under ~85\u00b0C on air cooling; if it throttles hard, clean dust or repaste."}], "ram": [{"title": "Run an extended memory stress pass (1+ hour)", "desc": "Longer runs surface intermittent bit errors that short tests miss \u2014 critical after RAM upgrades/XMP.", "os": ["win", "mac", "linux"], "risk": "caution", "time": "60 min", "cmd": {"win": "stress-ng --vm 2 --vm-bytes 80% --timeout 3600s --metrics-brief", "mac": "stress-ng --vm 2 --vm-bytes 80% --timeout 3600s --metrics-brief", "linux": "stress-ng --vm 2 --vm-bytes 80% --timeout 3600s --metrics-brief"}}], "storage": [{"title": "Sustained write endurance test", "desc": "Simulates heavy sustained writes (e.g., large file copy/render exports) to see thermal-throttled SSDs drop speed.", "os": ["win", "mac", "linux"], "risk": "caution", "time": "3 min", "cmd": {"win": "fio --name=write --rw=write --bs=1M --size=8G --numjobs=1 --runtime=180 --group_reporting", "mac": "fio --name=write --rw=write --bs=1M --size=8G --numjobs=1 --runtime=180 --group_reporting", "linux": "fio --name=write --rw=write --bs=1M --size=8G --numjobs=1 --runtime=180 --group_reporting"}, "tip": "Delete the generated test file afterward: it is written in the current folder."}], "network": [{"title": "LAN throughput test with iperf3 (needs 2 devices)", "desc": "Isolates real LAN/Wi-Fi throughput vs your ISP, useful for diagnosing Wi-Fi bottlenecks.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "5 min", "cmd": {"win": "winget install iperf3 -e ; iperf3 -c <server-ip>  # run 'iperf3 -s' on the other machine first", "mac": "brew install iperf3 && iperf3 -c <server-ip>", "linux": "sudo apt install -y iperf3 && iperf3 -c <server-ip>"}}], "os": [{"title": "Full system file integrity + stability scan", "desc": "Corrupted system files masquerade as 'performance issues' \u2014 rule this out under a full scan.", "os": ["win", "mac", "linux"], "risk": "caution", "time": "15-30 min", "cmd": {"win": "sfc /scannow ; DISM /Online /Cleanup-Image /RestoreHealth", "mac": "sudo /usr/libexec/repair_packages --verify --standard-pkgs /", "linux": "sudo fsck -Nf $(findmnt -n -o SOURCE /) ; journalctl -p 3 -xb"}}]}}, "nightmare": {"label": "Nightmare", "tagline": "Multi-hour torture tests + failure-detection for enthusiasts pushing the edge (OC validation, RMA evidence).", "color": "#ff3860", "categories": {"cpu": [{"title": "8-hour Prime95 'Blend' stability torture test", "desc": "The gold-standard for validating an overclock or diagnosing random crashes \u2014 any Whea/BSOD/worker-stop = unstable.", "os": ["win", "linux"], "risk": "risky", "time": "8 hours", "cmd": {"win": "winget install --id=Mersenne.Prime95 -e   # then choose 'Blend' torture test in the GUI", "linux": "wget https://www.mersenne.org/download/software/v30/30.19/p95v3019b20.linux64.tar.gz && tar xf p95v3019b20.linux64.tar.gz && cd p95v3019b20 && ./mprime -t"}, "tip": "Do NOT run unattended on a system without a case fan check. Abort immediately on any thermal alarm."}], "gpu": [{"title": "3+ hour combined CPU+GPU max load (OCCT)", "desc": "Runs a rigorous power-virus style test with automatic error/crash detection \u2014 best pre-purchase or post-repaste validation.", "os": ["win"], "risk": "risky", "time": "3+ hours", "cmd": {"win": "winget install OCBase.OCCT -e   # run 'Extreme' combined test for 3+ hours with error detection ON"}}, {"title": "HWBOT-style benchmark run for leaderboard comparison", "desc": "Submit your overclocked score to a public ranking to see exactly where you stand vs the same hardware worldwide.", "os": ["win"], "risk": "safe", "time": "1 min", "cmd": {"win": "Start-Process https://hwbot.org/subforums/benchmarks/"}, "compare": {"label": "HWBOT overclocking rankings", "url": "https://hwbot.org/"}}], "ram": [{"title": "Bootable MemTest86 full pass (multiple loops)", "desc": "Runs outside the OS to catch bit-level RAM errors that no in-OS tool can find. Needs a USB stick.", "os": ["win", "mac", "linux"], "risk": "risky", "time": "2-6 hours", "cmd": {"win": "winget install PassMark.MemTest86 -e   # write to USB, boot from it, run 2+ full passes", "mac": "brew install --cask memtest86  # write to USB via included tool, boot from it (may need to disable secure boot)", "linux": "sudo apt install -y memtest86+   # select from GRUB boot menu, run 2+ full passes"}, "tip": "Any red/failed row = confirmed bad RAM stick \u2014 note the exact address & module."}], "storage": [{"title": "Full SMART self-test + surface scan", "desc": "Deep, destructive-safe scan that finds pending/reallocated sectors invisible to quick checks.", "os": ["win", "mac", "linux"], "risk": "caution", "time": "1-4 hours", "cmd": {"win": "smartctl -t long /dev/sda ; # wait per estimate, then: smartctl -a /dev/sda", "mac": "sudo smartctl -t long /dev/disk0 && sleep 3600 && sudo smartctl -a /dev/disk0", "linux": "sudo smartctl -t long /dev/sda && sleep 3600 && sudo smartctl -a /dev/sda"}}], "network": [{"title": "24-hour packet loss & latency logging", "desc": "Long-run ping logging exposes intermittent Wi-Fi drops/router issues invisible in a 10-second test.", "os": ["win", "mac", "linux"], "risk": "caution", "time": "24 hours", "cmd": {"win": "ping 1.1.1.1 -t | Tee-Object -FilePath ping_log.txt", "mac": "ping 1.1.1.1 | tee ping_log.txt", "linux": "ping 1.1.1.1 | tee ping_log.txt"}, "tip": "Stop with Ctrl+C, then grep for 'timeout' or 'Request timed out' to count drops."}], "os": [{"title": "Full disk-wipe-safe boot & driver rollback stress cycle", "desc": "Repeated reboot/sleep-wake cycling under load exposes driver crashes that single sessions hide.", "os": ["win", "mac", "linux"], "risk": "risky", "time": "overnight", "cmd": {"win": "for ($i=0;$i -lt 20;$i++) { Restart-Computer -Force; Start-Sleep 120 }  # schedule via Task Scheduler, not raw loop", "mac": "for i in $(seq 1 20); do sudo shutdown -r now; sleep 120; done  # use with caution / caffeinate log", "linux": "for i in $(seq 1 20); do sudo reboot; sleep 120; done"}, "tip": "Only attempt if you know how to check boot logs afterward (Event Viewer / journalctl -b -1)."}]}}, "pro": {"label": "Extra Professional", "tagline": "Lab-grade: enterprise tools, logged sensor telemetry, firmware audits, and exportable comparison reports.", "color": "#8a2be2", "categories": {"cpu": [{"title": "Full AIDA64 Engineer suite report + sensor CSV logging", "desc": "Enterprise-grade sensor logging (per-core clocks/voltage/temp) exported to CSV for spreadsheet-level analysis.", "os": ["win"], "risk": "safe", "time": "1 min", "cmd": {"win": "winget install FinalWire.AIDA64.Engineer -e   # Tools > Sensor > Start Logging (CSV) during any benchmark"}, "compare": {"label": "AIDA64 benchmark result database", "url": "https://www.aida64.com/"}}, {"title": "PassMark BurnInTest certified multi-hour hardware audit", "desc": "Used by OEMs/repair shops as certifiable proof of hardware stability for RMA or resale documentation.", "os": ["win"], "risk": "safe", "time": "1 min", "cmd": {"win": "winget install PassMark.BurnInTest -e   # run all-component 'Standard' test for 2+ hours, export PDF certificate"}}], "gpu": [{"title": "Cross-reference score against TechPowerUp + PassMark databases", "desc": "Compute your percentile rank vs the exact same GPU model worldwide, not just 'similar' cards.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "Start-Process https://www.techpowerup.com/gpu-specs/", "mac": "open https://www.techpowerup.com/gpu-specs/", "linux": "xdg-open https://www.techpowerup.com/gpu-specs/"}, "compare": {"label": "TechPowerUp GPU database", "url": "https://www.techpowerup.com/gpu-specs/"}}], "ram": [{"title": "Timing/sub-timing audit via SPD (Thaiphoon-level detail)", "desc": "Verifies your RAM is actually running at rated CAS/tRCD/tRP timings, not silently downclocked.", "os": ["win", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "winget install CPUID.CPU-Z -e   # SPD tab shows every module's rated + active timings", "linux": "sudo dmidecode -t 17 | egrep 'Speed|Configured|Part Number'"}}], "storage": [{"title": "Enterprise-grade IOPS/latency profiling under mixed workload", "desc": "fio with mixed random read/write + iodepth simulates real server/DB load, not just sequential copy speed.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "5 min", "cmd": {"win": "fio --name=mixed --rw=randrw --rwmixread=70 --bs=4k --iodepth=32 --numjobs=4 --size=2G --runtime=300 --group_reporting", "mac": "fio --name=mixed --rw=randrw --rwmixread=70 --bs=4k --iodepth=32 --numjobs=4 --size=2G --runtime=300 --group_reporting", "linux": "fio --name=mixed --rw=randrw --rwmixread=70 --bs=4k --iodepth=32 --numjobs=4 --size=2G --runtime=300 --group_reporting"}}], "network": [{"title": "Full OSI-layer diagnostic bundle (DNS, MTU, route, jitter)", "desc": "One consolidated capture for professional support tickets or ISP escalations.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "nslookup google.com; Test-NetConnection google.com -TraceRoute; ping -f -l 1472 google.com", "mac": "nslookup google.com; traceroute google.com; ping -D -s 1472 google.com", "linux": "nslookup google.com; mtr -rw google.com; ping -M do -s 1472 google.com"}}], "os": [{"title": "BIOS/UEFI + firmware version audit vs OEM latest", "desc": "Outdated firmware silently caps performance/power profiles and blocks security & efficiency microcode fixes.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "Get-CimInstance Win32_BIOS | Select-Object Manufacturer,SMBIOSBIOSVersion,ReleaseDate", "mac": "system_profiler SPHardwareDataType | grep 'Boot ROM'", "linux": "sudo dmidecode -t bios"}}, {"title": "Compile a comparison report against PC build database", "desc": "Match your exact spec sheet to community-submitted builds to benchmark 'expected vs actual' at a system level.", "os": ["win", "mac", "linux"], "risk": "safe", "time": "1 min", "cmd": {"win": "Start-Process https://pcpartpicker.com/builds/", "mac": "open https://pcpartpicker.com/builds/", "linux": "xdg-open https://pcpartpicker.com/builds/"}, "compare": {"label": "PCPartPicker completed builds", "url": "https://pcpartpicker.com/builds/"}}]}}};
+const CAT_META = {"cpu": {"icon": "\ud83e\udde0", "label": "CPU"}, "gpu": {"icon": "\ud83c\udfae", "label": "GPU"}, "ram": {"icon": "\ud83d\udcbe", "label": "RAM"}, "storage": {"icon": "\ud83d\udcbd", "label": "Storage"}, "network": {"icon": "\ud83c\udf10", "label": "Network"}, "os": {"icon": "\ud83d\udda5\ufe0f", "label": "OS / System"}};
+const TIER_ORDER = ["easy", "medium", "hard", "nightmare", "pro"];
+
+const STORAGE_KEY = 'phoenixFuhrerProgress_v1';
+let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+let currentTier = TIER_ORDER[0];
+let currentOS = 'win';
+
+// ---- Ember particle background ----
+function spawnEmbers(){
+  const container = document.getElementById('embers');
+  const count = window.innerWidth < 700 ? 14 : 26;
+  for(let i=0;i<count;i++){
+    const e = document.createElement('div');
+    e.className = 'ember';
+    const size = 3 + Math.random()*6;
+    e.style.width = size+'px';
+    e.style.height = size+'px';
+    e.style.left = Math.random()*100+'vw';
+    e.style.setProperty('--drift', (Math.random()*80-40)+'px');
+    e.style.animationDuration = (7+Math.random()*10)+'s';
+    e.style.animationDelay = (Math.random()*10)+'s';
+    container.appendChild(e);
+  }
+}
+
+function detectOS(){
+  const ua = navigator.userAgent;
+  if(ua.includes('Mac')) return 'mac';
+  if(ua.includes('Linux') && !ua.includes('Android')) return 'linux';
+  return 'win';
+}
+
+function stepId(tier, cat, idx){ return tier+'::'+cat+'::'+idx; }
+
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+function totalStepsInTier(tierKey){
+  const cats = DATA[tierKey].categories;
+  let n=0;
+  Object.keys(cats).forEach(c => n += cats[c].length);
+  return n;
+}
+function doneStepsInTier(tierKey){
+  const cats = DATA[tierKey].categories;
+  let n=0;
+  Object.keys(cats).forEach(c => {
+    cats[c].forEach((s,i)=>{ if(state[stepId(tierKey,c,i)]) n++; });
+  });
+  return n;
+}
+function totalStepsAll(){
+  let n=0; TIER_ORDER.forEach(t=>n+=totalStepsInTier(t)); return n;
+}
+function doneStepsAll(){
+  let n=0; TIER_ORDER.forEach(t=>n+=doneStepsInTier(t)); return n;
+}
+
+function renderDashboard(){
+  const dash = document.getElementById('dashboard');
+  const total = totalStepsAll();
+  const done = doneStepsAll();
+  const pct = total? Math.round(done/total*100):0;
+  const circumference = 2*Math.PI*24;
+  const offset = circumference - (pct/100)*circumference;
+
+  let html = `
+    <div class="stat-card">
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 60 60">
+          <circle class="bg" cx="30" cy="30" r="24"></circle>
+          <circle class="fg" cx="30" cy="30" r="24" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" transform="rotate(-90 30 30)"></circle>
+        </svg>
+        <div>
+          <div class="num">${pct}%</div>
+          <div class="lbl">Overall Progress</div>
+        </div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="num">${done} / ${total}</div>
+      <div class="lbl">Steps Completed</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">${currentOS.toUpperCase()}</div>
+      <div class="lbl">Active OS Profile</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">${DATA[currentTier].label}</div>
+      <div class="lbl">Current Tier</div>
+    </div>
+  `;
+  dash.innerHTML = html;
+}
+
+function renderTierTabs(){
+  const wrap = document.getElementById('tierTabs');
+  wrap.innerHTML = '';
+  TIER_ORDER.forEach(t=>{
+    const tier = DATA[t];
+    const total = totalStepsInTier(t);
+    const done = doneStepsInTier(t);
+    const pct = total? Math.round(done/total*100):0;
+    const btn = document.createElement('button');
+    btn.className = 'tier-tab' + (t===currentTier?' active':'');
+    if(t===currentTier){
+      btn.style.background = `linear-gradient(135deg, ${tier.color}, ${tier.color}cc)`;
+      btn.style.borderColor = tier.color;
+    }
+    btn.innerHTML = `${tier.label}<span class="tt-badge">${done}/${total} done</span><div class="tt-progress" style="width:${pct}%;background:${tier.color}"></div>`;
+    btn.onclick = ()=>{ currentTier = t; renderAll(); };
+    wrap.appendChild(btn);
+  });
+}
+
+function renderTagline(){
+  const tier = DATA[currentTier];
+  document.getElementById('tierTagline').textContent = tier.tagline;
+}
+
+function riskLabel(r){
+  if(r==='risky') return 'Risky';
+  if(r==='caution') return 'Caution';
+  return 'Safe';
+}
+
+function buildStepCard(tier, catKey, idx, step){
+  const id = stepId(tier, catKey, idx);
+  const isDone = !!state[id];
+  const card = document.createElement('div');
+  card.className = 'step' + (isDone?' done':'');
+
+  const cmdObj = step.cmd || {};
+  const availableOS = step.os || ['win','mac','linux'];
+  let osForCmd = currentOS;
+  if(!availableOS.includes(osForCmd)){
+    osForCmd = availableOS[0];
+  }
+  const cmdText = cmdObj[osForCmd] || cmdObj[availableOS[0]] || '';
+
+  const needsConfirm = step.risk === 'risky';
+  const alreadyRevealed = state[id+'::revealed'];
+
+  card.innerHTML = `
+    <div class="step-top">
+      <div class="step-check ${isDone?'checked':''}" data-id="${id}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#04270f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      </div>
+      <div class="step-title-row">
+        <p class="step-title">${step.title}</p>
+        <p class="step-desc">${step.desc}</p>
+        <div class="badges">
+          <span class="badge ${step.risk}">${riskLabel(step.risk)}</span>
+          <span class="badge time">⏱ ${step.time}</span>
+          ${!availableOS.includes(currentOS) ? `<span class="badge time">Shown: ${osForCmd.toUpperCase()} (not available for ${currentOS.toUpperCase()})</span>` : ''}
+        </div>
+      </div>
+    </div>
+    <div class="cmd-slot"></div>
+    ${step.tip ? `<div class="tip">💡 ${step.tip}</div>` : ''}
+    ${step.compare ? `<a class="compare-link" target="_blank" rel="noopener" href="${step.compare.url}">📊 Compare your result: ${step.compare.label} ↗</a>` : ''}
+  `;
+
+  const cmdSlot = card.querySelector('.cmd-slot');
+  if(cmdText){
+    if(needsConfirm && !alreadyRevealed){
+      const lock = document.createElement('div');
+      lock.className = 'risky-lock';
+      lock.innerHTML = `<span>⚠ This is a long-running / high-load test. Confirm you understand before revealing the command.</span>`;
+      const btn = document.createElement('button');
+      btn.textContent = 'I understand, show command';
+      btn.onclick = ()=>{
+        state[id+'::revealed'] = true; saveState();
+        renderCategories();
+      };
+      lock.appendChild(btn);
+      cmdSlot.appendChild(lock);
+    } else {
+      const block = document.createElement('div');
+      block.className = 'code-block';
+      block.innerHTML = `<pre>${escapeHtml(cmdText)}</pre><button class="copy-btn">Copy</button>`;
+      block.querySelector('.copy-btn').onclick = (e)=>{
+        navigator.clipboard.writeText(cmdText).then(()=>{
+          e.target.textContent = 'Copied!';
+          e.target.classList.add('copied');
+          showToast('Command copied — paste it into your terminal.');
+          setTimeout(()=>{ e.target.textContent='Copy'; e.target.classList.remove('copied'); }, 1600);
+        });
+      };
+      cmdSlot.appendChild(block);
+    }
+  }
+
+  card.querySelector('.step-check').onclick = ()=>{
+    state[id] = !state[id];
+    saveState();
+    renderAll();
+  };
+
+  return card;
+}
+
+function escapeHtml(str){
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// persisted open/closed state for categories per tier
+let openCats = JSON.parse(localStorage.getItem('phoenixFuhrerOpenCats_v1') || '{}');
+
+function renderCategories(){
+  const wrap = document.getElementById('categories');
+  wrap.innerHTML = '';
+  const tierData = DATA[currentTier];
+  Object.keys(tierData.categories).forEach(catKey=>{
+    const steps = tierData.categories[catKey];
+    const meta = CAT_META[catKey] || {icon:'⚙️',label:catKey};
+    const openKey = currentTier+'::'+catKey;
+    const isOpen = !!openCats[openKey];
+
+    const doneCount = steps.filter((s,i)=>state[stepId(currentTier,catKey,i)]).length;
+    const pct = steps.length ? Math.round(doneCount/steps.length*100) : 0;
+
+    const catEl = document.createElement('div');
+    catEl.className = 'category' + (isOpen?' open':'');
+    catEl.innerHTML = `
+      <div class="cat-header">
+        <div class="cat-title"><span class="cat-icon">${meta.icon}</span> ${meta.label}</div>
+        <div class="cat-meta">
+          <span class="cat-count">${doneCount}/${steps.length}</span>
+          <div class="cat-progress-bar"><div class="cat-progress-fill" style="width:${pct}%;background:${tierData.color}"></div></div>
+          <span class="chevron">▾</span>
+        </div>
+      </div>
+      <div class="cat-body"><div class="cat-body-inner"></div></div>
+    `;
+    catEl.querySelector('.cat-header').onclick = ()=>{
+      openCats[openKey] = !openCats[openKey];
+      localStorage.setItem('phoenixFuhrerOpenCats_v1', JSON.stringify(openCats));
+      renderCategories();
+    };
+    const inner = catEl.querySelector('.cat-body-inner');
+    steps.forEach((s,i)=> inner.appendChild(buildStepCard(currentTier, catKey, i, s)) );
+    wrap.appendChild(catEl);
+  });
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+function renderAll(){
+  renderDashboard();
+  renderTierTabs();
+  renderTagline();
+  renderCategories();
+}
+
+// ---- OS toggle ----
+document.getElementById('osToggle').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.os-btn');
+  if(!btn) return;
+  currentOS = btn.dataset.os;
+  document.querySelectorAll('.os-btn').forEach(b=>b.classList.toggle('active', b===btn));
+  renderAll();
+});
+
+// ---- Export / Import / Reset ----
+document.getElementById('exportBtn').onclick = ()=>{
+  const blob = new Blob([JSON.stringify({state, openCats}, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'phoenix_fuhrer_progress.json';
+  a.click();
+  showToast('Progress exported!');
+};
+document.getElementById('importBtn').onclick = ()=> document.getElementById('importFile').click();
+document.getElementById('importFile').onchange = (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      state = parsed.state || parsed;
+      openCats = parsed.openCats || {};
+      saveState();
+      localStorage.setItem('phoenixFuhrerOpenCats_v1', JSON.stringify(openCats));
+      renderAll();
+      showToast('Progress imported!');
+    }catch(err){ showToast('Invalid file.'); }
+  };
+  reader.readAsText(file);
+};
+document.getElementById('resetBtn').onclick = ()=>{
+  if(confirm('Reset ALL progress across every tier? This cannot be undone.')){
+    state = {};
+    saveState();
+    renderAll();
+    showToast('All progress reset.');
+  }
+};
+
+// ---- init ----
+currentOS = detectOS();
+document.querySelectorAll('.os-btn').forEach(b=> b.classList.toggle('active', b.dataset.os===currentOS));
+spawnEmbers();
+renderAll();
+</script>
+</body>
+</html>
